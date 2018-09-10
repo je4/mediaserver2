@@ -2,8 +2,7 @@ package mediaserver
 
 import (
 	"database/sql"
-	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/url"
 	"sort"
@@ -67,16 +66,16 @@ func (ms *Mediaserver) Handler(ctx *fasthttp.RequestCtx, collection string, sign
 		ctx.Error("error querying backend", 500)
 	}
 	contentType := resp.Header.Get("Content-type")
-	if contentType == ""  {
+	if contentType == "" {
 		contentType = "text/html"
 	}
 	ctx.SetContentType(contentType)
-	content, err := ioutil.ReadAll(resp.Body)
+
+	_, err = io.Copy(ctx, resp.Body)
 	if err != nil {
 		log.Println(err)
 		ctx.Error("error getting content from backend", 500)
 	}
-	fmt.Fprintf(ctx, "%s", content)
 
 	return
 }
