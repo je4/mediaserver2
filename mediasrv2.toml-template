@@ -1,0 +1,25 @@
+ip = "0.0.0.0"
+port = 8080
+tls = false
+tlscert = ""
+tlskey = ""
+
+[mediaserver]
+alias = "/mediaserver/"
+
+	[mediaserver.fcgi]
+	proto = "unix"
+	addr = "/run/php/php7.2-fpm.sock"
+	script = "/mnt/hgfs/linux_vm/workspace/mediasrv2/php/mediaserver/info.php"
+
+	[mediaserver.database]
+	servertype = "mysql"
+	dsn = "mediaserver:SWORDFISH@tcp(localhost:3306)/mediaserver?charset=utf8"
+	connection_max = 5000
+
+[folders]
+	[folders.test]
+	title = "altes zeug"
+	path = "/mnt/hgfs/linux_vm/workspace/mediasrv2/html/"
+	secret = "gAg2kwj4ehu9h2oF3o4"
+	alias = "/collection1/"
