@@ -10,7 +10,7 @@ alias = "/mediaserver/"
 	[mediaserver.fcgi]
 	proto = "unix"
 	addr = "/run/php/php7.2-fpm.sock"
-	script = "/mnt/hgfs/linux_vm/workspace/mediasrv2/php/mediaserver/info.php"
+	script = "/mnt/hgfs/linux_vm/workspace/mediasrv2/php/mediaserver/index2.php"
 
 	[mediaserver.database]
 	servertype = "mysql"
@@ -21,5 +21,5 @@ alias = "/mediaserver/"
 	[folders.test]
 	title = "altes zeug"
 	path = "/mnt/hgfs/linux_vm/workspace/mediasrv2/html/"
-	secret = "gAg2kwj4ehu9h2oF3o4"
+	secret = "PWD"
 	alias = "/collection1/"
