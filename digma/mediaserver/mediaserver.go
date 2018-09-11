@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"sort"
 
-	//"github.com/valyala/fasthttp"
 	"github.com/tomasen/fcgi_client"
 )
 
@@ -20,6 +19,7 @@ type Mediaserver struct {
 	fcgiProto      string
 	fcgiAddr       string
 	scriptFilename string
+	collections    *Collections
 }
 
 // Create a new Mediaserver
@@ -36,10 +36,20 @@ func New(db *sql.DB, fcgiProto string, fcgiAddr string, scriptFilename string) *
 	return mediaserver
 }
 
+// constructor
 func (ms *Mediaserver) Init() (err error) {
+	ms.collections = NewCollections(ms.db)
+	/*
+	c, err := ms.collections.ById(10)
+	if err != nil {
+		log.Fatal(err)
+	} 
+	log.Println( c )
+	*/
 	return
 }
 
+// query handler
 func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, collection string, signature string, action string, params []string) (err error) {
 	sort.Strings(params)
 	fcgi, err := fcgiclient.Dial(ms.fcgiProto, ms.fcgiAddr)
@@ -79,7 +89,6 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		log.Println(err)
 		fmt.Fprintln(writer, "Unable to connect to the backend")
 		writer.WriteHeader(500)
-		//ctx.Error("error querying backend", 500)
 		return
 	}
 	contentType := resp.Header.Get("Content-type")
@@ -87,14 +96,12 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		contentType = "text/html"
 	}
 	writer.Header().Set("Content-type", contentType)
-	//ctx.SetContentType(contentType)
 
 	_, err = io.Copy(writer, resp.Body)
 	if err != nil {
 		log.Println(err)
 		fmt.Fprintln(writer, "error getting content from backend")
 		writer.WriteHeader(500)
-		//ctx.Error("error getting content from backend", 500)
 		return
 	}
 

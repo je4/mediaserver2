@@ -19,9 +19,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/julienschmidt/httprouter"
-	//"github.com/qiangxue/fasthttp-routing"
-	//"github.com/valyala/fasthttp"
-	//"github.com/valyala/fasthttp/expvarhandler"
+	accesslog "github.com/mash/go-accesslog"
 )
 
 /*
@@ -35,7 +33,17 @@ var (
 	FCGI_ADDR  string = ""
 )
 
+type logger struct {
+}
+
+func (l logger) Log(record accesslog.LogRecord) {
+	log.Println(record.Host + " \"" + record.Method + " " + record.Uri + " " + record.Protocol + "\" " + strconv.Itoa(record.Status) + " " + strconv.FormatInt(record.Size, 10))
+}
+
 func main() {
+	
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	
 	// get location of config file
 	cfgfile := flag.String("cfg", "/etc/mediasrv2.toml", "location of config file")
 	flag.Parse()
@@ -67,21 +75,22 @@ func main() {
 			AuthFileSrvHandler(writer, req, folder.Secret, strings.TrimRight(folder.Path, "/"), folder.Title, params)
 		})
 	}
-		// create mediaserver route
-		ms := mediaserver.New(db, cfg.Mediaserver.FCGI.Proto, cfg.Mediaserver.FCGI.Addr, cfg.Mediaserver.FCGI.Script)
+	// create mediaserver route
+	ms := mediaserver.New(db, cfg.Mediaserver.FCGI.Proto, cfg.Mediaserver.FCGI.Addr, cfg.Mediaserver.FCGI.Script)
 
-		router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
-			collection := params.ByName("collection")
-			signature := params.ByName("signature")
-			action := params.ByName("action")
-			paramString := params.ByName("params")
-			ps := strings.Split(paramString, "/")
-			ms.Handler(writer, req, collection, signature, action, ps)
-		})
+	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+		collection := params.ByName("collection")
+		signature := params.ByName("signature")
+		action := params.ByName("action")
+		paramString := params.ByName("params")
+		ps := strings.Split(paramString, "/")
+		ms.Handler(writer, req, collection, signature, action, ps)
+	})
 	addr := cfg.IP + ":" + strconv.Itoa(cfg.Port)
 	log.Printf("Starting HTTP server on %q", addr)
 	go func() {
-		log.Fatal(http.ListenAndServe(addr, router))
+		l := logger{}
+		log.Fatal(http.ListenAndServe(addr, accesslog.NewLoggingHandler(router, l)))
 	}()
 
 	select {} // wait forever
@@ -89,7 +98,7 @@ func main() {
 
 func AuthFileSrvHandler(w http.ResponseWriter, r *http.Request, jwtSecret string, basePath string, title string, params httprouter.Params) {
 
-	log.Println(params)
+	//log.Println(params)
 	if jwtSecret != "" {
 		auth, ok := r.URL.Query()["auth"]
 		if !ok {
