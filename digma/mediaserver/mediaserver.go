@@ -2,13 +2,14 @@ package mediaserver
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"sort"
 
-	"github.com/valyala/fasthttp"
-
+	//"github.com/valyala/fasthttp"
 	"github.com/tomasen/fcgi_client"
 )
 
@@ -39,42 +40,62 @@ func (ms *Mediaserver) Init() (err error) {
 	return
 }
 
-func (ms *Mediaserver) Handler(ctx *fasthttp.RequestCtx, collection string, signature string, function string, params []string) (err error) {
+func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, collection string, signature string, action string, params []string) (err error) {
 	sort.Strings(params)
 	fcgi, err := fcgiclient.Dial(ms.fcgiProto, ms.fcgiAddr)
 	if err != nil {
 		log.Println(err)
-		ctx.Error("Unable to connect to the backend", 502)
+		fmt.Fprintln(writer, "Unable to connect to the backend")
+		writer.WriteHeader(502)
+		//ctx.Error("Unable to connect to the backend", 502)
 		return
 	}
 	parameters := url.Values{}
 	parameters.Add("collection", collection)
 	parameters.Add("signature", signature)
-	parameters.Add("function", function)
+	parameters.Add("action", action)
 	for _, value := range params {
-		parameters.Add("params[]", value)
+		if value != "" {
+			parameters.Add("params[]", value)
+		}
 	}
 
-	env := make(map[string]string)
-	env["SCRIPT_FILENAME"] = ms.scriptFilename
-	env["SERVER_SOFTWARE"] = "DIGMA Mediaserver"
-	env["REMOTE_ADDR"] = "127.0.0.1"
-	env["QUERY_STRING"] = parameters.Encode()
+	env := map[string]string{
+		"AUTH_TYPE":       "", // Not used
+		"SCRIPT_FILENAME": ms.scriptFilename,
+		"SERVER_SOFTWARE": "DIGMA Mediaserver/0.1",
+		"REMOTE_ADDR":     req.RemoteAddr,
+		"QUERY_STRING":    parameters.Encode(),
+		"HOME":            "/",
+		"HTTPS":           "on",
+		"REQUEST_SCHEME":  "https",
+		"SERVER_PROTOCOL": req.Proto,
+		"REQUEST_METHOD":  req.Method,
+		"FCGI_ROLE":       "RESPONDER",
+		"REQUEST_URI":     req.RequestURI,
+	}
 	resp, err := fcgi.Get(env)
 	if err != nil {
 		log.Println(err)
-		ctx.Error("error querying backend", 500)
+		fmt.Fprintln(writer, "Unable to connect to the backend")
+		writer.WriteHeader(500)
+		//ctx.Error("error querying backend", 500)
+		return
 	}
 	contentType := resp.Header.Get("Content-type")
 	if contentType == "" {
 		contentType = "text/html"
 	}
-	ctx.SetContentType(contentType)
+	writer.Header().Set("Content-type", contentType)
+	//ctx.SetContentType(contentType)
 
-	_, err = io.Copy(ctx, resp.Body)
+	_, err = io.Copy(writer, resp.Body)
 	if err != nil {
 		log.Println(err)
-		ctx.Error("error getting content from backend", 500)
+		fmt.Fprintln(writer, "error getting content from backend")
+		writer.WriteHeader(500)
+		//ctx.Error("error getting content from backend", 500)
+		return
 	}
 
 	return
