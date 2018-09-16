@@ -17,7 +17,6 @@ import (
 
 	"net/http"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/julienschmidt/httprouter"
 	accesslog "github.com/mash/go-accesslog"
 )
@@ -41,9 +40,9 @@ func (l logger) Log(record accesslog.LogRecord) {
 }
 
 func main() {
-	
+
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	
+
 	// get location of config file
 	cfgfile := flag.String("cfg", "/etc/mediasrv2.toml", "location of config file")
 	flag.Parse()
@@ -72,7 +71,7 @@ func main() {
 
 		// add the filesystem reader to the router
 		router.GET(strings.TrimRight(folder.Alias, "/")+"/*path", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
-			AuthFileSrvHandler(writer, req, folder.Secret, strings.TrimRight(folder.Path, "/"), folder.Title, params)
+			mediaserver.AuthFileSrvHandler(writer, req, folder.Secret, cfg.SubPrefix, strings.TrimRight(folder.Path, "/"), folder.Alias, params)
 		})
 	}
 	// create mediaserver route
@@ -87,7 +86,7 @@ func main() {
 		ps := strings.Split(paramString, "/")
 		ms.Handler(writer, req, collection, signature, action, ps)
 	})
-	
+
 	// route without parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		collection := params.ByName("collection")
@@ -107,57 +106,3 @@ func main() {
 	select {} // wait forever
 }
 
-func AuthFileSrvHandler(w http.ResponseWriter, r *http.Request, jwtSecret string, basePath string, title string, params httprouter.Params) {
-
-	//log.Println(params)
-	if jwtSecret != "" {
-		auth, ok := r.URL.Query()["auth"]
-		if !ok {
-			w.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(w, "<html><body style='font-size:100px'>Zugriff verweigert, Schlüssel fehlt</body></html>")
-			return
-		}
-		tokenstring := auth[0]
-
-		token, _ := jwt.Parse(tokenstring, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(jwtSecret), nil
-		})
-		if !token.Valid {
-			w.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(w, "<html><body style='font-size:100px'>Zugriff verweigert, Schlüsselfehler</body></html>")
-			return
-		}
-	}
-
-	filePath := basePath + "/" + params.ByName("path")
-	_, fileName := path.Split(filePath)
-
-	fileStat, err := os.Stat(filePath)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	if fileStat.IsDir() {
-		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(w, "<html><body style='font-size:100px'>Zugriff auf Verzeichnis %s verweigert</body></html>", fileName)
-		return
-	}
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		fmt.Printf("%s not found\n", filePath)
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "<html><body style='font-size:100px'>Die Kollektion %s enthält keine Datei %s</body></html>", title, fileName)
-		return
-	}
-	defer file.Close()
-
-	t := fileStat.ModTime()
-	w.Header().Set("Server", "DIGMA Mediaserver")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	http.ServeContent(w, r, fileName, t, file)
-}

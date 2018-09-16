@@ -7,7 +7,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-func checkJWT(tokenstring string, secret string, subject string) (bool, error) {
+func CheckJWT(tokenstring string, secret string, subject string) (bool, error) {
 	type ClaimSet struct {
 		Subject string `json:"sub,omitempty"`
 		Expires int64  `json:"exp,string"`

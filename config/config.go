@@ -14,6 +14,7 @@ type Config struct {
 	TLS         bool
 	TLSCert     string
 	TLSKey      string
+	SubPrefix	string
 }
 
 type Mediaserver struct {
