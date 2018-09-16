@@ -7,24 +7,24 @@ import (
 )
 
 type Config struct {
-	Folders map[string]Folder
-	Mediaserver Mediaserver 
-	Port    int
-	IP      string
-	TLS     bool
-	TLSCert string
-	TLSKey  string
+	Folders     map[string]Folder
+	Mediaserver Mediaserver
+	Port        int
+	IP          string
+	TLS         bool
+	TLSCert     string
+	TLSKey      string
 }
 
 type Mediaserver struct {
-	DB      database `toml:"database"`
-	FCGI	fcgi `toml:"fcgi"`
+	DB    database `toml:"database"`
+	FCGI  fcgi     `toml:"fcgi"`
 	Alias string
 }
 
 type fcgi struct {
-	Proto string
-	Addr string
+	Proto  string
+	Addr   string
 	Script string
 }
 
@@ -35,10 +35,15 @@ type database struct {
 }
 
 type Folder struct {
-	Title  string
-	Path   string
-	Secret string
-	Alias  string
+	Title   string
+	Path    string
+	Secret  string
+	Alias   string
+	Subnets []Subnet
+}
+
+type Subnet struct {
+	net string
 }
 
 func Load(filepath string) Config {

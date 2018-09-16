@@ -7,9 +7,16 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/tomasen/fcgi_client"
+)
+
+var (
+	VERSION = "DIGMA Mediaserver 0.1"
 )
 
 // the Mediaserver does some nice conversion things for various media types
@@ -20,6 +27,7 @@ type Mediaserver struct {
 	fcgiAddr       string
 	scriptFilename string
 	collections    *Collections
+	storages       *Storages
 }
 
 // Create a new Mediaserver
@@ -40,18 +48,90 @@ func New(db *sql.DB, fcgiProto string, fcgiAddr string, scriptFilename string) *
 func (ms *Mediaserver) Init() (err error) {
 	ms.collections = NewCollections(ms.db)
 	/*
-	c, err := ms.collections.ById(10)
-	if err != nil {
-		log.Fatal(err)
-	} 
-	log.Println( c )
+		c, err := ms.collections.ById(10)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println( c )
+	*/
+	ms.storages = NewStorages(ms.db)
+	/*
+		s, err := ms.storages.ById(9)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println( s )
 	*/
 	return
 }
 
 // query handler
 func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, collection string, signature string, action string, params []string) (err error) {
+	var (
+		filebase    string
+		path        string
+		mimetype    string
+		jwtkey      sql.NullString
+		paramstring string
+	)
 	sort.Strings(params)
+
+	coll, err := ms.collections.ByName(collection)
+	paramstring = strings.Trim(strings.Join(params, "/"), "/")
+	rows, err := ms.db.Query("select filebase, path, mimetype, jwtkey from fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, action, paramstring)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&filebase, &path, &mimetype, &jwtkey)
+		if err != nil {
+			log.Fatal(err)
+			break
+		}
+		uri := strings.TrimRight(filebase, "/") + "/" + strings.TrimLeft(path, "/")
+		url, err := url.Parse(uri)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if _, err := os.Stat(url.Path); err == nil {
+			filePath := url.Path
+			_, fileName := filepath.Split(filePath)
+
+			fileStat, err := os.Stat(filePath)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+
+			if fileStat.IsDir() {
+				writer.WriteHeader(http.StatusForbidden)
+				fmt.Fprintf(writer, "<html><body style='font-size:100px'>Zugriff auf Verzeichnis %s verweigert</body></html>", fileName)
+				return err
+			}
+
+			file, err := os.Open(filePath)
+			if err != nil {
+				fmt.Printf("%s not found\n", filePath)
+				writer.WriteHeader(http.StatusNotFound)
+				fmt.Fprintf(writer, "<html><body style='font-size:100px'>Die Kollektion enthält keine Datei %s</body></html>", fileName)
+				return err
+			}
+			defer file.Close()
+
+			t := fileStat.ModTime()
+			writer.Header().Set("Server", VERSION)
+			writer.Header().Set("Access-Control-Allow-Origin", "*")
+			http.ServeContent(writer, req, fileName, t, file)
+
+			return nil
+		}
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fcgi, err := fcgiclient.Dial(ms.fcgiProto, ms.fcgiAddr)
 	if err != nil {
 		log.Println(err)

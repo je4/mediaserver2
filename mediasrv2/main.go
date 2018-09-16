@@ -78,11 +78,22 @@ func main() {
 	// create mediaserver route
 	ms := mediaserver.New(db, cfg.Mediaserver.FCGI.Proto, cfg.Mediaserver.FCGI.Addr, cfg.Mediaserver.FCGI.Script)
 
+	// route with parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		collection := params.ByName("collection")
 		signature := params.ByName("signature")
 		action := params.ByName("action")
 		paramString := params.ByName("params")
+		ps := strings.Split(paramString, "/")
+		ms.Handler(writer, req, collection, signature, action, ps)
+	})
+	
+	// route without parameters
+	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+		collection := params.ByName("collection")
+		signature := params.ByName("signature")
+		action := params.ByName("action")
+		paramString := ""
 		ps := strings.Split(paramString, "/")
 		ms.Handler(writer, req, collection, signature, action, ps)
 	})
