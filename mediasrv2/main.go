@@ -1,17 +1,17 @@
 package main
 
 import (
-	"config"
 	"database/sql"
-	"fmt"
-
 	"digma/mediaserver"
 	"flag"
+	"fmt"
 	"log"
 	"os"
-	"path"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -33,10 +33,12 @@ var (
 )
 
 type logger struct {
+	handle *os.File
 }
 
 func (l logger) Log(record accesslog.LogRecord) {
 	log.Println(record.Host + " \"" + record.Method + " " + record.Uri + " " + record.Protocol + "\" " + strconv.Itoa(record.Status) + " " + strconv.FormatInt(record.Size, 10))
+	fmt.Fprintf(l.handle, record.Host+" \""+record.Method+" "+record.Uri+" "+record.Protocol+"\" "+strconv.Itoa(record.Status)+" "+strconv.FormatInt(record.Size, 10)+"\n")
 }
 
 func main() {
@@ -46,7 +48,7 @@ func main() {
 	// get location of config file
 	cfgfile := flag.String("cfg", "/etc/mediasrv2.toml", "location of config file")
 	flag.Parse()
-	cfg := config.Load(*cfgfile)
+	cfg := Load(*cfgfile)
 
 	// get database connection handle
 	db, err := sql.Open(cfg.Mediaserver.DB.ServerType, cfg.Mediaserver.DB.DSN)
@@ -75,7 +77,15 @@ func main() {
 		})
 	}
 	// create mediaserver route
-	ms := mediaserver.New(db, cfg.Mediaserver.FCGI.Proto, cfg.Mediaserver.FCGI.Addr, cfg.Mediaserver.FCGI.Script)
+	ms := mediaserver.New(db,
+		cfg.Mediaserver.FCGI.Proto,
+		cfg.Mediaserver.FCGI.Addr,
+		cfg.Mediaserver.FCGI.Script,
+		cfg.Mediaserver.Alias,
+		cfg.SubPrefix,
+		cfg.Mediaserver.IIIF.URL,
+		cfg.Mediaserver.IIIF.IIIFBase,
+		cfg.Mediaserver.IIIF.Alias)
 
 	// route with parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -96,13 +106,46 @@ func main() {
 		ps := strings.Split(paramString, "/")
 		ms.Handler(writer, req, collection, signature, action, ps)
 	})
+
+	// route for IIIF
+	router.GET(strings.TrimRight(cfg.Mediaserver.IIIF.Alias, "/")+"/:token/:service/:api/:file/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+		file := params.ByName("file")
+		token := params.ByName("token")
+		paramString := params.ByName("params")
+		ms.HandlerIIIF(writer, req, file, paramString, token)
+	})
+
+	// route for IIIF without parameters
+	router.GET(strings.TrimRight(cfg.Mediaserver.IIIF.Alias, "/")+"/:token/:service/:api/:file", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+		file := params.ByName("file")
+		token := params.ByName("token")
+		ms.HandlerIIIF(writer, req, file, "", token)
+	})
+
 	addr := cfg.IP + ":" + strconv.Itoa(cfg.Port)
 	log.Printf("Starting HTTP server on %q", addr)
+
 	go func() {
-		l := logger{}
-		log.Fatal(http.ListenAndServe(addr, accesslog.NewLoggingHandler(router, l)))
+		f, err := os.OpenFile(cfg.Logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
+		l := logger{handle: f}
+
+		if cfg.TLS {
+			log.Fatal(http.ListenAndServeTLS(addr, cfg.TLSCert, cfg.TLSKey, accesslog.NewLoggingHandler(router, l)))
+		} else {
+			log.Fatal(http.ListenAndServe(addr, accesslog.NewLoggingHandler(router, l)))
+		}
 	}()
 
-	select {} // wait forever
+	var gracefulStop = make(chan os.Signal)
+	signal.Notify(gracefulStop, syscall.SIGTERM)
+	signal.Notify(gracefulStop, syscall.SIGINT)
+	sig := <-gracefulStop
+	fmt.Printf("caught sig: %+v", sig)
+	fmt.Println("Wait for 2 second to finish processing")
+	time.Sleep(2 * time.Second)
+	os.Exit(0)
 }
-

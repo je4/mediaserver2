@@ -1,4 +1,4 @@
-package config
+package main
 
 import (
 	"log"
@@ -14,12 +14,14 @@ type Config struct {
 	TLS         bool
 	TLSCert     string
 	TLSKey      string
-	SubPrefix	string
+	SubPrefix   string
+	Logfile     string
 }
 
 type Mediaserver struct {
 	DB    database `toml:"database"`
 	FCGI  fcgi     `toml:"fcgi"`
+	IIIF  iiif     `toml:"iiif"`
 	Alias string
 }
 
@@ -27,6 +29,12 @@ type fcgi struct {
 	Proto  string
 	Addr   string
 	Script string
+}
+
+type iiif struct {
+	URL      string
+	IIIFBase string
+	Alias    string
 }
 
 type database struct {

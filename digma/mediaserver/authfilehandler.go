@@ -1,7 +1,6 @@
 package mediaserver
 
 import (
-	"digma/mediaserver"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,7 +16,7 @@ func AuthFileSrvHandler(w http.ResponseWriter, r *http.Request, jwtSecret string
 	if jwtSecret != "" {
 		token, ok := r.URL.Query()["token"]
 		if ok {
-			ok, err := mediaserver.CheckJWT(token[0], jwtSecret, subPrefix+strings.ToLower(strings.Trim(alias, "/")+"/"+strings.TrimLeft(params.ByName("path"), "/")))
+			ok, err := CheckJWT(token[0], jwtSecret, subPrefix+strings.ToLower(strings.Trim(alias, "/")+"/"+strings.TrimLeft(params.ByName("path"), "/")))
 			if !ok {
 				w.WriteHeader(http.StatusForbidden)
 				fmt.Fprintf(w, "<html><body style='font-size:100px'>invalid access token: %s</body></html>", err)

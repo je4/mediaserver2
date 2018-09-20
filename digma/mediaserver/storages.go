@@ -17,6 +17,7 @@ type Storage struct {
 	id       int
 	name     string
 	filebase string
+	secret   sql.NullString
 }
 
 // Create a new Mediaserver
@@ -36,23 +37,27 @@ func (stors *Storages) Init() (err error) {
 		id       int
 		name     string
 		filebase string
+		secret   sql.NullString
 	)
 	// initialize maps
 	stors.storages = make(map[int]Storage)
 	// get all storages
-	rows, err := stors.db.Query("select storageid as id, name, filebase from storage")
+	rows, err := stors.db.Query("select storageid as id, name, filebase, jwtkey from storage")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer rows.Close()
 	for rows.Next() {
-		err := rows.Scan(&id, &name, &filebase)
+		err := rows.Scan(&id, &name, &filebase, &secret)
 		if err != nil {
 			log.Fatal(err)
 			break
 		}
 		// add collection to map
-		stors.storages[id] = Storage{name: name, id: id, filebase: filebase}
+		stors.storages[id] = Storage{name: name,
+			id:       id,
+			filebase: filebase,
+			secret:   secret}
 	}
 	err = rows.Err()
 	if err != nil {
