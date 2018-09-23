@@ -1,4 +1,4 @@
-package main
+package mediaserver
 
 import (
 	"log"
@@ -7,18 +7,21 @@ import (
 )
 
 type Config struct {
-	Folders     map[string]Folder
-	Mediaserver Mediaserver
-	Port        int
-	IP          string
-	TLS         bool
-	TLSCert     string
-	TLSKey      string
-	SubPrefix   string
-	Logfile     string
+	Folders       map[string]Folder
+	Mediaserver   CfgMediaserver
+	Port          int
+	IP            string
+	TLS           bool
+	TLSCert       string
+	TLSKey        string
+	SubPrefix     string
+	Logfile       string
+	Accesslog     string
+	Loglevel      string
+	ErrorTemplate string
 }
 
-type Mediaserver struct {
+type CfgMediaserver struct {
 	DB    database `toml:"database"`
 	FCGI  fcgi     `toml:"fcgi"`
 	IIIF  iiif     `toml:"iiif"`
@@ -55,7 +58,7 @@ type Subnet struct {
 	net string
 }
 
-func Load(filepath string) Config {
+func LoadConfig(filepath string) Config {
 	var conf Config
 	_, err := toml.DecodeFile(filepath, &conf)
 	if err != nil {

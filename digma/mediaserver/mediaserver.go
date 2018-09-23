@@ -3,6 +3,7 @@ package mediaserver
 import (
 	"database/sql"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 
+	logging "github.com/op/go-logging"
 	"github.com/tomasen/fcgi_client"
 )
 
@@ -24,33 +26,21 @@ var (
 // initially uses some php stuff to do it...
 type Mediaserver struct {
 	db             *sql.DB
-	fcgiProto      string
-	fcgiAddr       string
-	scriptFilename string
+	cfg            *Config
 	collections    *Collections
-	alias          string
-	subprefix      string
 	storages       *Storages
-	proxyURL       string
-	iiifBase       string
-	iiifAlias      string
+	logger         *logging.Logger
 }
 
 // Create a new Mediaserver
 // db Database Handle
 // fcgiProto Protocol for FCGI connection
 // fcgiAddr Address for FCGI connection
-func New(db *sql.DB, fcgiProto string, fcgiAddr string, scriptFilename string, alias string, subprefix string, proxyURL string, iiifBase string, iiifAlias string) *Mediaserver {
+func New(db *sql.DB, cfg *Config, logger *logging.Logger) *Mediaserver {
 	mediaserver := &Mediaserver{
 		db:             db,
-		fcgiProto:      fcgiProto,
-		fcgiAddr:       fcgiAddr,
-		alias:          alias,
-		subprefix:      subprefix,
-		scriptFilename: scriptFilename,
-		proxyURL:       proxyURL,
-		iiifBase:       iiifBase,
-		iiifAlias:      iiifAlias}
+		cfg:            cfg,
+		logger:         logger}
 	mediaserver.Init()
 	return mediaserver
 }
@@ -62,6 +52,24 @@ func (ms *Mediaserver) Init() (err error) {
 	return
 }
 
+// output of error message
+func (ms *Mediaserver) DoPanic(writer http.ResponseWriter, req *http.Request, status int, message string) (err error) {
+	type errData struct {
+		Status     int
+		StatusText string
+		Message    string
+	}
+	data := errData{
+		Status:     status,
+		StatusText: http.StatusText(status),
+		Message:    message,
+	}
+	writer.WriteHeader(status)
+	t := template.Must(template.ParseFiles(ms.cfg.ErrorTemplate))
+	t.Execute(writer, data)
+	return
+}
+
 // IIIF handler
 func (ms *Mediaserver) HandlerIIIF(writer http.ResponseWriter, req *http.Request, file string, params string, token string) (err error) {
 	writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -70,31 +78,35 @@ func (ms *Mediaserver) HandlerIIIF(writer http.ResponseWriter, req *http.Request
 	tokenParts := strings.SplitN(token, "_", 2)
 	storageid, err := strconv.Atoi(tokenParts[0])
 	if err != nil {
-		writer.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(writer, "<html><body><h3>Invalid token - no storageid: %s</h3></body></html>", token)
+		ms.DoPanic(writer, req, http.StatusForbidden, fmt.Sprintf("Invalid token - no storageid: %s", token))
 		return err
 	}
 	storage, err := ms.storages.ById(storageid)
 	if err != nil {
-		writer.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(writer, "<html><body><h3>Invalid token - storage #%u not found: %s</h3></body></html>", storageid, token)
+		ms.DoPanic(writer, req, http.StatusForbidden, fmt.Sprintf("Invalid token - storage #%d not found: %s", storageid, token))
+		return err
+	}
+	filename := singleJoiningSlash(ms.cfg.Mediaserver.IIIF.IIIFBase, strings.Replace(file, "$", "/", -1))
+	storagePath, err := storage.GetPath()
+	if !strings.HasPrefix(filename, storagePath) {
+		ms.DoPanic(writer, req, http.StatusForbidden, fmt.Sprintf("Invalid storage #%d for file %s - %s", storageid, filename, storagePath))
 		return err
 	}
 	if storage.secret.Valid {
 		token := tokenParts[1]
-		sub := strings.ToLower(strings.TrimRight(ms.subprefix+file, "/"))
-		ok, err := CheckJWT(token, storage.secret.String, sub)
-		if !ok {
-			writer.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(writer, "<html><body><h3>invalid access token: %s</h3></body></html>", err)
+		sub := strings.Replace(strings.ToLower(strings.TrimRight(ms.cfg.SubPrefix+file, "/")), "$", "%24", -1)
+		err := CheckJWT(token, storage.secret.String, sub)
+		if err != nil {
+			ms.DoPanic(writer, req, http.StatusForbidden, err.Error())
 			return err
 		}
 	}
 	iiifPath := strings.Replace(file, "$", "%24", -1)
+	filePath := iiifPath
 	if len(params) > 0 {
 		iiifPath = singleJoiningSlash(iiifPath, params)
 	}
-	urlstring := singleJoiningSlash(ms.proxyURL, iiifPath)
+	urlstring := singleJoiningSlash(ms.cfg.Mediaserver.IIIF.URL, iiifPath)
 
 	client := &http.Client{}
 	log.Println("Proxy: ", urlstring)
@@ -105,26 +117,38 @@ func (ms *Mediaserver) HandlerIIIF(writer http.ResponseWriter, req *http.Request
 
 	token = "open"
 	if storage.secret.Valid {
-		sub := ms.subprefix + iiifPath
+		sub := ms.cfg.SubPrefix + filePath
 		token, err = NewJWT(storage.secret.String, sub, 7200)
 		if err != nil {
+			ms.DoPanic(writer, req, http.StatusInternalServerError, fmt.Sprintf("Error creating access token: %s", err))
 			return err
 		}
 	}
-
-	req2.Header.Add("X-Forwarded-Proto", "http")
-	req2.Header.Add("X-Forwarded-Host", req.Host[:strings.IndexByte(req.Host, ':')])
-	req2.Header.Add("X-Forwarded-Port", req.Host[(strings.IndexByte(req.Host, ':')+1):])
-	req2.Header.Add("X-Forwarded-Path", singleJoiningSlash(ms.iiifAlias, token)+"/")
+	token = strconv.Itoa(storageid) + "_" + token
+	host := req.Host
+	port := "443"
+	if strings.IndexByte(req.Host, ':') > 0 {
+		host = req.Host[:strings.IndexByte(req.Host, ':')]
+		port = req.Host[(strings.IndexByte(req.Host, ':') + 1):]
+	}
+	proto := "http"
+	if req.TLS != nil {
+		proto = "https"
+	}
+	req2.Header.Add("X-Forwarded-Proto", proto)
+	req2.Header.Add("X-Forwarded-Host", host)
+	req2.Header.Add("X-Forwarded-Port", port)
+	req2.Header.Add("X-Forwarded-Path", singleJoiningSlash(ms.cfg.Mediaserver.IIIF.Alias, token)+"/")
 	req2.Header.Add("X-Forwarded-For", req.RemoteAddr[:strings.IndexByte(req.RemoteAddr, ':')])
 
-/*
-	for k, v := range req2.Header {
-		log.Println("Key:", k, "Value:", v)
-	}
-*/	
+	/*
+		for k, v := range req2.Header {
+			log.Println("Key:", k, "Value:", v)
+		}
+	*/
 	rs, err := client.Do(req2)
 	if err != nil {
+		ms.DoPanic(writer, req, http.StatusBadGateway, fmt.Sprintf("Error calling proxy: %s - %s", urlstring, err))
 		return err
 	}
 	defer rs.Body.Close()
@@ -152,7 +176,6 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 
 	coll, err := ms.collections.ByName(collection)
 	paramstring = strings.Trim(strings.Join(params, "/"), "/")
-
 	naction = action
 	nparamstring = paramstring
 	isiiif := (action == "iiif")
@@ -160,37 +183,99 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		naction = "master"
 		nparamstring = ""
 	}
+	ms.logger.Debug("QUERY: /" + collection + "[" + strconv.Itoa(coll.id) + "]/" + signature + "/" + naction + "/" + nparamstring)
 
+	found := true
 	row := ms.db.QueryRow("select filebase, path, mimetype, jwtkey, storageid FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
 	if err != nil {
-		log.Fatal(err)
+		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not query %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
+		return err
 	}
 	err = row.Scan(&filebase, &path, &mimetype, &jwtkey, &storageid)
 	if err != nil {
-		log.Fatal(err)
-		return err
+		found = false
+		ms.logger.Debug("file not in database")
+		//		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not find %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
+		//		return nil
 	}
-	if jwtkey.Valid {
+	if found && jwtkey.Valid {
+		// get token from uri parameter
 		token, ok := req.URL.Query()["token"]
+		// sometimes auth is used instead of token...
+		if !ok {
+			token, ok = req.URL.Query()["auth"]
+		}
 		if ok {
-			sub := strings.ToLower(strings.TrimRight(ms.subprefix+strings.Trim(ms.alias, "/")+"/"+collection+"/"+signature+"/"+action+"/"+paramstring, "/"))
-			ok, err := CheckJWT(token[0], jwtkey.String, sub)
-			if !ok {
-				writer.WriteHeader(http.StatusForbidden)
-				fmt.Fprintf(writer, "<html><body><h3>invalid access token: %s</h3></body></html>", err)
+			sub := strings.ToLower(strings.TrimRight(ms.cfg.SubPrefix+collection+"/"+signature+"/"+action+"/"+paramstring, "/"))
+			err := CheckJWT(token[0], jwtkey.String, sub)
+			if err != nil {
+				ms.DoPanic(writer, req, http.StatusForbidden, err.Error())
 				return err
 			}
 		} else {
-			writer.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(writer, "<html><body><h3>no access token: access denied</h3></body></html>")
+			ms.DoPanic(writer, req, http.StatusForbidden, fmt.Sprintf("no access token"))
 			return err
 		}
+	}
+
+	// if not found, then forward to php mediaserver
+	if !found {
+		ms.logger.Debugf("Start fcgi %s %s", ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr)
+		fcgi, err := fcgiclient.Dial(ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr)
+		if err != nil {
+			ms.DoPanic(writer, req, http.StatusBadGateway, fmt.Sprintf("Unable to connect to fcgi backend: %s://%s - %s", ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr, err))
+			//ctx.Error("Unable to connect to the backend", 502)
+			return err
+		}
+		parameters := url.Values{}
+		parameters.Add("collection", collection)
+		parameters.Add("signature", signature)
+		parameters.Add("action", naction)
+		for _, value := range params {
+			if value != "" {
+				parameters.Add("params[]", value)
+			}
+		}
+
+		env := map[string]string{
+			"AUTH_TYPE":       "", // Not used
+			"SCRIPT_FILENAME": ms.cfg.Mediaserver.FCGI.Script,
+			"SERVER_SOFTWARE": "DIGMA Mediaserver/0.1",
+			"REMOTE_ADDR":     req.RemoteAddr,
+			"QUERY_STRING":    parameters.Encode(),
+			"HOME":            "/",
+			"HTTPS":           "on",
+			"REQUEST_SCHEME":  "https",
+			"SERVER_PROTOCOL": req.Proto,
+			"REQUEST_METHOD":  req.Method,
+			"FCGI_ROLE":       "RESPONDER",
+			"REQUEST_URI":     req.RequestURI,
+		}
+		resp, err := fcgi.Get(env)
+		if err != nil {
+			ms.DoPanic(writer, req, http.StatusBadGateway, fmt.Sprintf("Unable to get data from fcgi backend: %s:%s - %s", ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr, err))
+			return err
+		}
+		contentType := resp.Header.Get("Content-type")
+		if contentType == "" {
+			contentType = "text/html"
+		}
+		writer.Header().Set("Content-type", contentType)
+
+		_, err = io.Copy(writer, resp.Body)
+		if err != nil {
+			ms.logger.Errorf("Unable to copy content from fcgi backend: %s://%s - %s", ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr, err)
+			ms.DoPanic(writer, req, http.StatusBadGateway, fmt.Sprintf("Unable to copy content from fcgi backend: %s://%s - %s", ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr, err))
+			return err
+		}
+
+		return nil
 	}
 
 	uri := strings.TrimRight(filebase, "/") + "/" + strings.TrimLeft(path, "/")
 	URL, err := url.Parse(uri)
 	if err != nil {
-		log.Fatal(err)
+		ms.logger.Critical(err)
 	}
 	if _, err := os.Stat(URL.Path); err == nil {
 		filePath := URL.Path
@@ -203,45 +288,61 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		}
 
 		if fileStat.IsDir() {
-			writer.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(writer, "<html><body style='font-size:100px'>Zugriff auf Verzeichnis %s verweigert</body></html>", fileName)
+			ms.DoPanic(writer, req, http.StatusForbidden, fmt.Sprintf("Access to folder %s denied", fileName))
 			return err
 		}
 
 		if isiiif {
-			iiifPath := strings.Replace(strings.Trim(strings.TrimPrefix(filePath, ms.iiifBase), "/"), "/", "%24", -1)
+			iiifPath := strings.Replace(strings.Trim(strings.TrimPrefix(filePath, ms.cfg.Mediaserver.IIIF.IIIFBase), "/"), "/", "%24", -1)
+			iiifPathWithParam := iiifPath
 			if len(paramstring) > 0 {
-				iiifPath = singleJoiningSlash(iiifPath, paramstring)
+				iiifPathWithParam = singleJoiningSlash(iiifPath, paramstring)
 			}
-			urlstring := singleJoiningSlash(ms.proxyURL, iiifPath)
+			urlstring := singleJoiningSlash(ms.cfg.Mediaserver.IIIF.URL, iiifPathWithParam)
 
 			client := &http.Client{}
-			log.Println("Proxy: ", urlstring)
+			ms.logger.Debugf("Proxy: %s", urlstring)
 			req2, err := http.NewRequest("GET", urlstring, nil)
 			if err != nil {
+				ms.DoPanic(writer, req, http.StatusInternalServerError, fmt.Sprintf("Error creating http request for %s: %s", urlstring, err))
 				return err
 			}
 
 			token := "open"
 			if jwtkey.Valid {
 				secret := jwtkey.String
-				sub := ms.subprefix + iiifPath
+				sub := ms.cfg.SubPrefix + iiifPath
 				token, err = NewJWT(secret, sub, 7200)
 				if err != nil {
+					ms.DoPanic(writer, req, http.StatusInternalServerError, fmt.Sprintf("Error creating access token for %s: %s", sub, err))
 					return err
 				}
 			}
 
-			req2.Header.Add("X-Forwarded-Proto", "http")
-			req2.Header.Add("X-Forwarded-Host", req.Host[:strings.IndexByte(req.Host, ':')])
-			req2.Header.Add("X-Forwarded-Port", req.Host[(strings.IndexByte(req.Host, ':')+1):])
-			req2.Header.Add("X-Forwarded-Path", singleJoiningSlash(ms.iiifAlias, strconv.Itoa(storageid)+"_"+token)+"/")
-			req2.Header.Add("X-Forwarded-For", req.RemoteAddr[:strings.IndexByte(req.RemoteAddr, ':')])
-			for k, v := range req2.Header {
-				log.Println("Key:", k, "Value:", v)
+			//ms.logger.Debug("req.Host:", req.Host)
+			host := req.Host
+			port := "443"
+			if strings.IndexByte(req.Host, ':') > 0 {
+				host = req.Host[:strings.IndexByte(req.Host, ':')]
+				port = req.Host[(strings.IndexByte(req.Host, ':') + 1):]
 			}
+			proto := "http"
+			if req.TLS != nil {
+				proto = "https"
+			}
+			req2.Header.Add("X-Forwarded-Proto", proto)
+			req2.Header.Add("X-Forwarded-Host", host)
+			req2.Header.Add("X-Forwarded-Port", port)
+			req2.Header.Add("X-Forwarded-Path", singleJoiningSlash(ms.cfg.Mediaserver.IIIF.Alias, strconv.Itoa(storageid)+"_"+token)+"/")
+			req2.Header.Add("X-Forwarded-For", req.RemoteAddr[:strings.IndexByte(req.RemoteAddr, ':')])
+			/*
+				for k, v := range req2.Header {
+					log.Println("Key:", k, "Value:", v)
+				}
+			*/
 			rs, err := client.Do(req2)
 			if err != nil {
+				ms.DoPanic(writer, req, http.StatusBadGateway, fmt.Sprintf("Error calling proxy: %s - %s", urlstring, err))
 				return err
 			}
 			defer rs.Body.Close()
@@ -254,71 +355,17 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		file, err := os.Open(filePath)
 		if err != nil {
 			fmt.Printf("%s not found\n", filePath)
-			writer.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(writer, "<html><body style='font-size:100px'>Die Kollektion enthält keine Datei %s</body></html>", fileName)
+			ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("File not found: %s", fileName))
 			return err
 		}
 		defer file.Close()
 
 		t := fileStat.ModTime()
 		writer.Header().Set("Server", VERSION)
+		//		log.Println("serve: ", fileName)
 		http.ServeContent(writer, req, fileName, t, file)
 
 		return nil
 	}
-
-	fcgi, err := fcgiclient.Dial(ms.fcgiProto, ms.fcgiAddr)
-	if err != nil {
-		log.Println(err)
-		fmt.Fprintln(writer, "Unable to connect to the backend")
-		writer.WriteHeader(502)
-		//ctx.Error("Unable to connect to the backend", 502)
-		return
-	}
-	parameters := url.Values{}
-	parameters.Add("collection", collection)
-	parameters.Add("signature", signature)
-	parameters.Add("action", naction)
-	for _, value := range params {
-		if value != "" {
-			parameters.Add("params[]", value)
-		}
-	}
-
-	env := map[string]string{
-		"AUTH_TYPE":       "", // Not used
-		"SCRIPT_FILENAME": ms.scriptFilename,
-		"SERVER_SOFTWARE": "DIGMA Mediaserver/0.1",
-		"REMOTE_ADDR":     req.RemoteAddr,
-		"QUERY_STRING":    parameters.Encode(),
-		"HOME":            "/",
-		"HTTPS":           "on",
-		"REQUEST_SCHEME":  "https",
-		"SERVER_PROTOCOL": req.Proto,
-		"REQUEST_METHOD":  req.Method,
-		"FCGI_ROLE":       "RESPONDER",
-		"REQUEST_URI":     req.RequestURI,
-	}
-	resp, err := fcgi.Get(env)
-	if err != nil {
-		log.Println(err)
-		fmt.Fprintln(writer, "Unable to connect to the backend")
-		writer.WriteHeader(500)
-		return
-	}
-	contentType := resp.Header.Get("Content-type")
-	if contentType == "" {
-		contentType = "text/html"
-	}
-	writer.Header().Set("Content-type", contentType)
-
-	_, err = io.Copy(writer, resp.Body)
-	if err != nil {
-		log.Println(err)
-		fmt.Fprintln(writer, "error getting content from backend")
-		writer.WriteHeader(500)
-		return
-	}
-
-	return
+	return nil
 }

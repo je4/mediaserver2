@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"net/url"
 	"strconv"
 )
 
@@ -82,4 +83,12 @@ func (stors *Storages) ByName(name string) (s Storage, err error) {
 	}
 	err = errors.New(name + " not found in collections")
 	return
+}
+
+func (s *Storage) GetPath() (string, error) {
+	_url, err := url.Parse(s.filebase)
+	if err != nil  {
+		return "", err
+	}
+	return _url.Path, nil
 }

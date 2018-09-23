@@ -10,21 +10,23 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func AuthFileSrvHandler(w http.ResponseWriter, r *http.Request, jwtSecret string, subPrefix string, basePath string, alias string, params httprouter.Params) {
+func (ms *Mediaserver) AuthFileSrvHandler(w http.ResponseWriter, req *http.Request, jwtSecret string, subPrefix string, basePath string, alias string, params httprouter.Params) {
 
 	//log.Println(params)
 	if jwtSecret != "" {
-		token, ok := r.URL.Query()["token"]
+		token, ok := req.URL.Query()["token"]
+		if !ok {
+			token, ok = req.URL.Query()["auth"]
+		}
 		if ok {
-			ok, err := CheckJWT(token[0], jwtSecret, subPrefix+strings.ToLower(strings.Trim(alias, "/")+"/"+strings.TrimLeft(params.ByName("path"), "/")))
-			if !ok {
-				w.WriteHeader(http.StatusForbidden)
-				fmt.Fprintf(w, "<html><body style='font-size:100px'>invalid access token: %s</body></html>", err)
+			sub := subPrefix + req.URL.EscapedPath() // strings.ToLower(strings.Trim(alias, "/")+"/"+strings.TrimLeft(params.ByName("path"), "/"))
+			err := CheckJWT(token[0], jwtSecret, sub)
+			if err != nil {
+				ms.DoPanic(w, req, http.StatusForbidden, err.Error())
 				return
 			}
 		} else {
-			w.WriteHeader(http.StatusForbidden)
-			fmt.Fprintf(w, "<html><body style='font-size:100px'>no access token: access denied</body></html>")
+			ms.DoPanic(w, req, http.StatusForbidden, fmt.Sprintf("no access token"))
 			return
 		}
 	}
@@ -34,7 +36,7 @@ func AuthFileSrvHandler(w http.ResponseWriter, r *http.Request, jwtSecret string
 
 	fileStat, err := os.Stat(filePath)
 	if err != nil {
-		fmt.Println(err)
+		ms.DoPanic(w, req, http.StatusNotFound, err.Error())
 		return
 	}
 
@@ -56,5 +58,5 @@ func AuthFileSrvHandler(w http.ResponseWriter, r *http.Request, jwtSecret string
 	t := fileStat.ModTime()
 	w.Header().Set("Server", "DIGMA Mediaserver")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	http.ServeContent(w, r, fileName, t, file)
+	http.ServeContent(w, req, fileName, t, file)
 }

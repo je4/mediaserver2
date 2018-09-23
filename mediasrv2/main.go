@@ -19,6 +19,7 @@ import (
 
 	"github.com/julienschmidt/httprouter"
 	accesslog "github.com/mash/go-accesslog"
+	"github.com/op/go-logging"
 )
 
 /*
@@ -36,32 +37,64 @@ type logger struct {
 	handle *os.File
 }
 
+var _log = logging.MustGetLogger("mediaserver2")
+
 func (l logger) Log(record accesslog.LogRecord) {
-	log.Println(record.Host + " \"" + record.Method + " " + record.Uri + " " + record.Protocol + "\" " + strconv.Itoa(record.Status) + " " + strconv.FormatInt(record.Size, 10))
-	fmt.Fprintf(l.handle, record.Host+" \""+record.Method+" "+record.Uri+" "+record.Protocol+"\" "+strconv.Itoa(record.Status)+" "+strconv.FormatInt(record.Size, 10)+"\n")
+	//log.Println(record.Host+" ["+(time.Now().Format(time.RFC3339))+"] \""+record.Method+" "+record.Uri+" "+record.Protocol+"\" "+strconv.Itoa(record.Status)+" "+strconv.FormatInt(record.Size, 10))
+	fmt.Fprintf(l.handle, record.Host+" ["+(time.Now().Format(time.RFC3339))+"] \""+record.Method+" "+record.Uri+" "+record.Protocol+"\" "+strconv.Itoa(record.Status)+" "+strconv.FormatInt(record.Size, 10)+"\n")
 }
 
 func main() {
-
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
 	// get location of config file
 	cfgfile := flag.String("cfg", "/etc/mediasrv2.toml", "location of config file")
 	flag.Parse()
-	cfg := Load(*cfgfile)
+	cfg := mediaserver.LoadConfig(*cfgfile)
+
+	lf, err := os.OpenFile(cfg.Logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	defer lf.Close()
+
+	backend := logging.NewLogBackend(lf, "", 0)
+	backendLeveled := logging.AddModuleLevel(backend)
+	switch cfg.Loglevel {
+	case "critical":
+		backendLeveled.SetLevel(logging.CRITICAL, "")
+	case "warn":
+		backendLeveled.SetLevel(logging.WARNING, "")
+	case "notice":
+		backendLeveled.SetLevel(logging.NOTICE, "")
+	case "info":
+		backendLeveled.SetLevel(logging.INFO, "")
+	case "debug":
+		backendLeveled.SetLevel(logging.DEBUG, "")
+	default:
+		backendLeveled.SetLevel(logging.ERROR, "")
+
+	}
+
+	logging.SetBackend(backendLeveled)
+
+	log.SetOutput(lf)
 
 	// get database connection handle
 	db, err := sql.Open(cfg.Mediaserver.DB.ServerType, cfg.Mediaserver.DB.DSN)
 	if err != nil {
-		panic(err.Error()) // Just for example purpose. You should use proper error handling instead of panic
+		panic(err.Error())
 	}
 	defer db.Close()
 
 	// Open doesn't open a connection. Validate DSN data:
 	err = db.Ping()
 	if err != nil {
-		panic(err.Error()) // proper error handling instead of panic in your app
+		panic(err.Error())
 	}
+
+	// create mediaserver route
+	ms := mediaserver.New(db, &cfg, _log)
 
 	// create a new router
 	router := httprouter.New()
@@ -73,19 +106,9 @@ func main() {
 
 		// add the filesystem reader to the router
 		router.GET(strings.TrimRight(folder.Alias, "/")+"/*path", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
-			mediaserver.AuthFileSrvHandler(writer, req, folder.Secret, cfg.SubPrefix, strings.TrimRight(folder.Path, "/"), folder.Alias, params)
+			ms.AuthFileSrvHandler(writer, req, folder.Secret, cfg.SubPrefix, strings.TrimRight(folder.Path, "/"), folder.Alias, params)
 		})
 	}
-	// create mediaserver route
-	ms := mediaserver.New(db,
-		cfg.Mediaserver.FCGI.Proto,
-		cfg.Mediaserver.FCGI.Addr,
-		cfg.Mediaserver.FCGI.Script,
-		cfg.Mediaserver.Alias,
-		cfg.SubPrefix,
-		cfg.Mediaserver.IIIF.URL,
-		cfg.Mediaserver.IIIF.IIIFBase,
-		cfg.Mediaserver.IIIF.Alias)
 
 	// route with parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -123,10 +146,10 @@ func main() {
 	})
 
 	addr := cfg.IP + ":" + strconv.Itoa(cfg.Port)
-	log.Printf("Starting HTTP server on %q", addr)
+	_log.Info("Starting HTTP server on %s", addr)
 
 	go func() {
-		f, err := os.OpenFile(cfg.Logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		f, err := os.OpenFile(cfg.Accesslog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic(err)
 		}
