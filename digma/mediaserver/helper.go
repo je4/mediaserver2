@@ -21,7 +21,7 @@ func NewJWT(secret string, subject string, valid int64) (tokenString string, err
 }
 
 func CheckJWT(tokenstring string, secret string, subject string) (error) {
-	subject = strings.ToLower(subject)
+	subject = strings.TrimRight(strings.ToLower(subject), "/")
 	token, err := jwt.Parse(tokenstring, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return false, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])

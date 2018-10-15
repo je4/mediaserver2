@@ -41,22 +41,17 @@ func (ms *Mediaserver) AuthFileSrvHandler(w http.ResponseWriter, req *http.Reque
 	}
 
 	if fileStat.IsDir() {
-		w.WriteHeader(http.StatusForbidden)
-		fmt.Fprintf(w, "<html><body style='font-size:100px'>Zugriff auf Verzeichnis %s verweigert</body></html>", fileName)
+		ms.DoPanic(w, req, http.StatusForbidden, fmt.Sprintf("Access denied to folder %s", fileName))
 		return
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("%s not found\n", filePath)
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "<html><body style='font-size:100px'>Die Kollektion %s enthält keine Datei %s</body></html>", alias, fileName)
+		ms.DoPanic(w, req, http.StatusNotFound, fmt.Sprintf("Collection %s does not contain file %s", alias, fileName ))
 		return
 	}
 	defer file.Close()
 
 	t := fileStat.ModTime()
-	w.Header().Set("Server", "DIGMA Mediaserver")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 	http.ServeContent(w, req, fileName, t, file)
 }

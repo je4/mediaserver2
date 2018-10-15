@@ -38,10 +38,13 @@ type logger struct {
 }
 
 var _log = logging.MustGetLogger("mediaserver2")
+var _logformat = logging.MustStringFormatter(
+	`%{time:2006-01-02T15:04:05.000} %{shortfunc} > %{level:.5s} - %{message}`,
+)
 
 func (l logger) Log(record accesslog.LogRecord) {
 	//log.Println(record.Host+" ["+(time.Now().Format(time.RFC3339))+"] \""+record.Method+" "+record.Uri+" "+record.Protocol+"\" "+strconv.Itoa(record.Status)+" "+strconv.FormatInt(record.Size, 10))
-	fmt.Fprintf(l.handle, record.Host+" ["+(time.Now().Format(time.RFC3339))+"] \""+record.Method+" "+record.Uri+" "+record.Protocol+"\" "+strconv.Itoa(record.Status)+" "+strconv.FormatInt(record.Size, 10)+"\n")
+	fmt.Fprintf(l.handle, "%s [%s] \"%s %s %s\" %d %d\n", record.Host, time.Now().Format(time.RFC3339), record.Method, record.Uri, record.Protocol, record.Status, record.Size)
 }
 
 func main() {
@@ -59,6 +62,7 @@ func main() {
 	defer lf.Close()
 
 	backend := logging.NewLogBackend(lf, "", 0)
+
 	backendLeveled := logging.AddModuleLevel(backend)
 	switch cfg.Loglevel {
 	case "critical":
@@ -76,9 +80,10 @@ func main() {
 
 	}
 
+	logging.SetFormatter(_logformat)
 	logging.SetBackend(backendLeveled)
 
-	log.SetOutput(lf)
+	//log.SetOutput(lf)
 
 	// get database connection handle
 	db, err := sql.Open(cfg.Mediaserver.DB.ServerType, cfg.Mediaserver.DB.DSN)
@@ -107,6 +112,8 @@ func main() {
 		// add the filesystem reader to the router
 		router.GET(strings.TrimRight(folder.Alias, "/")+"/*path", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
 			ms.AuthFileSrvHandler(writer, req, folder.Secret, cfg.SubPrefix, strings.TrimRight(folder.Path, "/"), folder.Alias, params)
+		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		})
 	}
 
@@ -118,6 +125,8 @@ func main() {
 		paramString := params.ByName("params")
 		ps := strings.Split(paramString, "/")
 		ms.Handler(writer, req, collection, signature, action, ps)
+		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
 	})
 
 	// route without parameters
@@ -128,6 +137,8 @@ func main() {
 		paramString := ""
 		ps := strings.Split(paramString, "/")
 		ms.Handler(writer, req, collection, signature, action, ps)
+		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
 	})
 
 	// route for IIIF
@@ -136,6 +147,8 @@ func main() {
 		token := params.ByName("token")
 		paramString := params.ByName("params")
 		ms.HandlerIIIF(writer, req, file, paramString, token)
+		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
 	})
 
 	// route for IIIF without parameters
@@ -143,10 +156,12 @@ func main() {
 		file := params.ByName("file")
 		token := params.ByName("token")
 		ms.HandlerIIIF(writer, req, file, "", token)
+		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Access-Control-Allow-Origin", "*")
 	})
 
 	addr := cfg.IP + ":" + strconv.Itoa(cfg.Port)
-	_log.Info("Starting HTTP server on %s", addr)
+	_log.Info("Starting HTTP server on", addr)
 
 	go func() {
 		f, err := os.OpenFile(cfg.Accesslog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
