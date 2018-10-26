@@ -186,6 +186,23 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	sort.Strings(params)
 
 	coll, err := ms.collections.ByName(collection)
+	// collection not found
+	if err != nil {
+		// reload collections
+		err = ms.collections.Init()
+		if err != nil {
+			ms.DoPanic(writer, req, http.StatusNotFound, "could not load collections: " + err.Error())
+			return err
+		}
+		coll, err = ms.collections.ByName(collection)
+		// again not found
+		if err != nil {
+			ms.DoPanic(writer, req, http.StatusNotFound, err.Error())
+			return err
+		}
+
+	}
+
 	paramstring = strings.Trim(strings.Join(params, "/"), "/")
 	naction = action
 	nparamstring = paramstring
@@ -198,10 +215,6 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 
 	found := true
 	row := ms.db.QueryRow("select filebase, path, mimetype, jwtkey, storageid FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
-	if err != nil {
-		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not query %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
-		return err
-	}
 	err = row.Scan(&filebase, &path, &mimetype, &jwtkey, &storageid)
 	if err != nil {
 		found = false
@@ -209,11 +222,11 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		//		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not find %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
 		//		return nil
 	}
-	if( found && isiiif && !(mimetype == "image/png" || mimetype == "image/tiff" )) {
-		ms.logger.Debug("Mimetype: "+ mimetype )
-				
+	if found && isiiif {
+		ms.logger.Debug("Mimetype: " + mimetype)
+
 		naction = "convert"
-		nparamstring = "formatpng"
+		nparamstring = "formatptiff"
 		row := ms.db.QueryRow("select filebase, path, jwtkey, storageid FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
 		if err != nil {
 			ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not query %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
@@ -222,7 +235,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		err = row.Scan(&filebase, &path, &jwtkey, &storageid)
 		if err != nil {
 			found = false
-		ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s]", collection, signature, naction, nparamstring))
+			ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s]", collection, signature, naction, nparamstring))
 			//		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not find %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
 			//		return nil
 		}

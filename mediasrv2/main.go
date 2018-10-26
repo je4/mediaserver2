@@ -182,7 +182,7 @@ func main() {
 	signal.Notify(gracefulStop, syscall.SIGTERM)
 	signal.Notify(gracefulStop, syscall.SIGINT)
 	sig := <-gracefulStop
-	fmt.Printf("caught sig: %+v", sig)
+	fmt.Printf("caught sig: %+v\n", sig)
 	fmt.Println("Wait for 2 second to finish processing")
 	time.Sleep(2 * time.Second)
 	os.Exit(0)
