@@ -28,7 +28,7 @@ import (
  */
 
 var (
-	VERSION    string = "xerver/v3.0"
+	VERSION    string = "DIGMA Mediaserver 0.1"
 	FCGI_PROTO string = "unix"
 	FCGI_ADDR  string = ""
 )
@@ -111,9 +111,9 @@ func main() {
 
 		// add the filesystem reader to the router
 		router.GET(strings.TrimRight(folder.Alias, "/")+"/*path", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+			writer.Header().Set("Server", VERSION)
+			writer.Header().Set("Access-Control-Allow-Origin", "*")
 			ms.AuthFileSrvHandler(writer, req, folder.Secret, cfg.SubPrefix, strings.TrimRight(folder.Path, "/"), folder.Alias, params)
-		writer.Header().Set("Server", "DIGMA Mediaserver")
-		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		})
 	}
 
@@ -124,9 +124,9 @@ func main() {
 		action := params.ByName("action")
 		paramString := params.ByName("params")
 		ps := strings.Split(paramString, "/")
-		ms.Handler(writer, req, collection, signature, action, ps)
-		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		ms.Handler(writer, req, collection, signature, action, ps)
 	})
 
 	// route without parameters
@@ -136,9 +136,9 @@ func main() {
 		action := params.ByName("action")
 		paramString := ""
 		ps := strings.Split(paramString, "/")
-		ms.Handler(writer, req, collection, signature, action, ps)
-		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		ms.Handler(writer, req, collection, signature, action, ps)
 	})
 
 	// route for IIIF
@@ -146,18 +146,18 @@ func main() {
 		file := params.ByName("file")
 		token := params.ByName("token")
 		paramString := params.ByName("params")
-		ms.HandlerIIIF(writer, req, file, paramString, token)
-		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		ms.HandlerIIIF(writer, req, file, paramString, token)
 	})
-
+ 
 	// route for IIIF without parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.IIIF.Alias, "/")+"/:token/:service/:api/:file", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		file := params.ByName("file")
 		token := params.ByName("token")
-		ms.HandlerIIIF(writer, req, file, "", token)
-		writer.Header().Set("Server", "DIGMA Mediaserver")
+		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
+		ms.HandlerIIIF(writer, req, file, "", token)
 	})
 
 	addr := cfg.IP + ":" + strconv.Itoa(cfg.Port)

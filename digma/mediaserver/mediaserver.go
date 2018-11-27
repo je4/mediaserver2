@@ -94,7 +94,7 @@ func (ms *Mediaserver) getProtoHostPort(req *http.Request) (proto string, host s
 
 // IIIF handler
 func (ms *Mediaserver) HandlerIIIF(writer http.ResponseWriter, req *http.Request, file string, params string, token string) (err error) {
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
+//	writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// token format: <storageid>_<token>
 	tokenParts := strings.SplitN(token, "_", 2)
@@ -181,7 +181,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		token        []string
 		ok           bool = false
 	)
-	writer.Header().Set("Access-Control-Allow-Origin", "*")
+//	writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	sort.Strings(params)
 
@@ -285,7 +285,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		env := map[string]string{
 			"AUTH_TYPE":       "", // Not used
 			"SCRIPT_FILENAME": ms.cfg.Mediaserver.FCGI.Script,
-			"SERVER_SOFTWARE": "DIGMA Mediaserver/0.1",
+			"SERVER_SOFTWARE": VERSION,
 			"REMOTE_ADDR":     req.RemoteAddr,
 			"QUERY_STRING":    parameters.Encode(),
 			"HOME":            "/",
@@ -395,7 +395,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		defer file.Close()
 
 		t := fileStat.ModTime()
-		writer.Header().Set("Server", VERSION)
+		//writer.Header().Set("Server", VERSION)
 		//		log.Println("serve: ", fileName)
 		http.ServeContent(writer, req, fileName, t, file)
 

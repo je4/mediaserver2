@@ -17,9 +17,15 @@ alias = "/mediaserver/"
 	dsn = "mediaserver:SWORDFISH@tcp(localhost:3306)/mediaserver?charset=utf8"
 	connection_max = 5000
 
-[folders]
-	[folders.test]
-	title = "altes zeug"
+	[folders]
+		[folders.test]
+		title = "altes zeug"
+		path = "/mnt/hgfs/linux_vm/workspace/mediasrv2/html/"
+		secret = "PWD"
+		alias = "/collection1/"
+
+[httpserver]
+	ip = "192.168.111.130"
+	port = 8080
 	path = "/mnt/hgfs/linux_vm/workspace/mediasrv2/html/"
-	secret = "PWD"
-	alias = "/collection1/"
+		
