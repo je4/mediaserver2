@@ -122,7 +122,7 @@ func main() {
 		collection := params.ByName("collection")
 		signature := params.ByName("signature")
 		action := params.ByName("action")
-		paramString := params.ByName("params")
+		paramString := strings.ToLower(params.ByName("params"))
 		ps := strings.Split(paramString, "/")
 		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
