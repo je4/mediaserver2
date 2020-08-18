@@ -94,7 +94,7 @@ func (ms *Mediaserver) getProtoHostPort(req *http.Request) (proto string, host s
 
 // IIIF handler
 func (ms *Mediaserver) HandlerIIIF(writer http.ResponseWriter, req *http.Request, file string, params string, token string) (err error) {
-//	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	//	writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	// token format: <storageid>_<token>
 	tokenParts := strings.SplitN(token, "_", 2)
@@ -181,7 +181,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		token        []string
 		ok           bool = false
 	)
-//	writer.Header().Set("Access-Control-Allow-Origin", "*")
+	//	writer.Header().Set("Access-Control-Allow-Origin", "*")
 
 	sort.Strings(params)
 
@@ -191,7 +191,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		// reload collections
 		err = ms.collections.Init()
 		if err != nil {
-			ms.DoPanic(writer, req, http.StatusNotFound, "could not load collections: " + err.Error())
+			ms.DoPanic(writer, req, http.StatusNotFound, "could not load collections: "+err.Error())
 			return err
 		}
 		coll, err = ms.collections.ByName(collection)
@@ -306,7 +306,6 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 			contentType = "text/html"
 		}
 		writer.Header().Set("Content-type", contentType)
-
 		_, err = io.Copy(writer, resp.Body)
 		if err != nil {
 			ms.DoPanic(writer, req, http.StatusBadGateway, fmt.Sprintf("Unable to copy content from fcgi backend: %s://%s - %s", ms.cfg.Mediaserver.FCGI.Proto, ms.cfg.Mediaserver.FCGI.Addr, err))
@@ -385,6 +384,10 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 			io.Copy(writer, rs.Body)
 
 			return nil
+		}
+		if !jwtkey.Valid {
+			//writer.Header().Set( "Cache-Control", "max-age=2592000, s-maxage=864000, stale-while-revalidate=86400, public")
+			writer.Header().Set("Cache-Control", ms.cfg.Mediaserver.CacheControl)
 		}
 
 		file, err := os.Open(filePath)

@@ -22,10 +22,11 @@ type Config struct {
 }
 
 type CfgMediaserver struct {
-	DB    database `toml:"database"`
-	FCGI  fcgi     `toml:"fcgi"`
-	IIIF  iiif     `toml:"iiif"`
-	Alias string
+	DB           database `toml:"database"`
+	FCGI         fcgi     `toml:"fcgi"`
+	IIIF         iiif     `toml:"iiif"`
+	Alias        string
+	CacheControl string
 }
 
 type fcgi struct {

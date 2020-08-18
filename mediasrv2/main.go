@@ -2,9 +2,9 @@ package main
 
 import (
 	"database/sql"
-	"digma/mediaserver"
 	"flag"
 	"fmt"
+	"gitlab.fhnw.ch/hgk-dima/mediaserver2/digma/mediaserver"
 	"log"
 	"os"
 	"os/signal"
@@ -150,7 +150,7 @@ func main() {
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		ms.HandlerIIIF(writer, req, file, paramString, token)
 	})
- 
+
 	// route for IIIF without parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.IIIF.Alias, "/")+"/:token/:service/:api/:file", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		file := params.ByName("file")
