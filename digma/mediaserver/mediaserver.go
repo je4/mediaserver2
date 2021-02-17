@@ -390,18 +390,20 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 			writer.Header().Set("Cache-Control", ms.cfg.Mediaserver.CacheControl)
 		}
 
-		file, err := os.Open(filePath)
-		if err != nil {
-			ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("File not found: %s - %s", fileName, err.Error()))
-			return err
-		}
-		defer file.Close()
+		/*
+			file, err := os.Open(filePath)
+			if err != nil {
+				ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("File not found: %s - %s", fileName, err.Error()))
+				return err
+			}
+			defer file.Close()
 
-		t := fileStat.ModTime()
-		//writer.Header().Set("Server", VERSION)
-		//		log.Println("serve: ", fileName)
-		http.ServeContent(writer, req, fileName, t, file)
-
+			t := fileStat.ModTime()
+			//writer.Header().Set("Server", VERSION)
+			//		log.Println("serve: ", fileName)
+			http.ServeContent(writer, req, fileName, t, file)
+		*/
+		http.ServeFile(writer, req, filePath)
 		return nil
 	}
 	return nil

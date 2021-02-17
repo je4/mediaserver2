@@ -19,9 +19,9 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="cache header added">
+    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="head request added">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/mediasrv2/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/mediasrv2/main.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,7 +38,6 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
-    <property name="GO_FMT" value="true" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="go.import.settings.migrated" value="true" />
@@ -87,43 +86,10 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="cache header added" />
-    <option name="LAST_COMMIT_MESSAGE" value="cache header added" />
+    <MESSAGE value="head request added" />
+    <option name="LAST_COMMIT_MESSAGE" value="head request added" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
-  </component>
-  <component name="WindowStateProjectService">
-    <state x="921" y="413" key="#Go_Modules" timestamp="1597741473689">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state x="921" y="413" key="#Go_Modules/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597741473689" />
-    <state x="583" y="234" key="#com.intellij.execution.impl.EditConfigurationsDialog" timestamp="1597743435662">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state x="583" y="234" key="#com.intellij.execution.impl.EditConfigurationsDialog/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597743435662" />
-    <state x="908" y="334" key="FileChooserDialogImpl" timestamp="1597743402379">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state x="908" y="334" key="FileChooserDialogImpl/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597743402379" />
-    <state width="1470" height="268" key="GridCell.Tab.0.bottom" timestamp="1597756149772">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state width="1470" height="268" key="GridCell.Tab.0.bottom/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597756149772" />
-    <state width="1470" height="268" key="GridCell.Tab.0.center" timestamp="1597756149772">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state width="1470" height="268" key="GridCell.Tab.0.center/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597756149772" />
-    <state width="1470" height="268" key="GridCell.Tab.0.left" timestamp="1597756149772">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state width="1470" height="268" key="GridCell.Tab.0.left/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597756149772" />
-    <state width="1470" height="268" key="GridCell.Tab.0.right" timestamp="1597756149772">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state width="1470" height="268" key="GridCell.Tab.0.right/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597756149772" />
-    <state x="721" y="312" key="Vcs.Push.Dialog.v2" timestamp="1597756002907">
-      <screen x="0" y="0" width="2048" height="1112" />
-    </state>
-    <state x="721" y="312" key="Vcs.Push.Dialog.v2/-1920.358.1536.824/0.0.2048.1112@0.0.2048.1112" timestamp="1597756002907" />
   </component>
 </project>
