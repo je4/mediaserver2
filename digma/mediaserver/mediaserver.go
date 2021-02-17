@@ -218,7 +218,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	err = row.Scan(&filebase, &path, &mimetype, &jwtkey, &storageid)
 	if err != nil {
 		found = false
-		ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s]", collection, signature, naction, nparamstring))
+		ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s] - %v", collection, signature, naction, nparamstring, err))
 		//		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not find %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
 		//		return nil
 	}
@@ -334,6 +334,8 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 			ms.DoPanic(writer, req, http.StatusForbidden, fmt.Sprintf("Access to folder %s denied", fileName))
 			return err
 		}
+
+		ms.logger.Debugf("size of %s - %v", filePath, fileStat.Size())
 
 		if isiiif {
 			iiifPath := strings.Replace(strings.Trim(strings.TrimPrefix(filePath, ms.cfg.Mediaserver.IIIF.IIIFBase), "/"), "/", "%24", -1)

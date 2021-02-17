@@ -19,7 +19,7 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="head request added">
+    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="file instead of request">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" afterDir="false" />
     </list>
@@ -87,7 +87,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="cache header added" />
     <MESSAGE value="head request added" />
-    <option name="LAST_COMMIT_MESSAGE" value="head request added" />
+    <MESSAGE value="file instead of request" />
+    <option name="LAST_COMMIT_MESSAGE" value="file instead of request" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
