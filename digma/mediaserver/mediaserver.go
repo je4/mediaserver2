@@ -318,7 +318,8 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	uri := strings.TrimRight(filebase, "/") + "/" + strings.TrimLeft(path, "/")
 	URL, err := url.Parse(uri)
 	if err != nil {
-		ms.logger.Critical(err)
+		ms.logger.Errorf("cannot parse url %s: %v", uri, err)
+		return err
 	}
 	if _, err := os.Stat(URL.Path); err == nil {
 		filePath := URL.Path
@@ -383,7 +384,10 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 			}
 			defer rs.Body.Close()
 
-			io.Copy(writer, rs.Body)
+			if _, err := io.Copy(writer, rs.Body); err != nil {
+				ms.logger.Errorf("cannot copy result body of iiif server: %v", err)
+				return err
+			}
 
 			return nil
 		}
