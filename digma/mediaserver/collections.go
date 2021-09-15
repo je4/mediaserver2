@@ -6,12 +6,14 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // the collections
 type Collections struct {
 	db          *sql.DB
 	collections map[string]Collection
+	m           sync.RWMutex
 }
 
 type Collection struct {
@@ -24,6 +26,7 @@ type Collection struct {
 func NewCollections(db *sql.DB) *Collections {
 	collections := &Collections{
 		db: db,
+		m:  sync.RWMutex{},
 	}
 	collections.Init()
 	return collections
@@ -36,6 +39,8 @@ func (colls *Collections) Init() (err error) {
 		id   int
 		name string
 	)
+	colls.m.Lock()
+	defer colls.m.Unlock()
 	// initialize maps
 	colls.collections = make(map[string]Collection)
 	// get all collections
@@ -61,6 +66,9 @@ func (colls *Collections) Init() (err error) {
 }
 
 func (colls *Collections) ByName(name string) (c Collection, err error) {
+	colls.m.RLock()
+	defer colls.m.RUnlock()
+
 	c, ok := colls.collections[strings.ToLower(name)]
 	if !ok {
 		err = errors.New(name + " not found in collections")
@@ -69,6 +77,9 @@ func (colls *Collections) ByName(name string) (c Collection, err error) {
 }
 
 func (colls *Collections) ById(id int) (c Collection, err error) {
+	colls.m.RLock()
+	defer colls.m.RUnlock()
+
 	for _, c = range colls.collections {
 		if c.id == id {
 			return

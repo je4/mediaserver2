@@ -6,12 +6,14 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"sync"
 )
 
 // the storages
 type Storages struct {
 	db       *sql.DB
 	storages map[int]Storage
+	m        sync.RWMutex
 }
 
 type Storage struct {
@@ -34,6 +36,8 @@ func NewStorages(db *sql.DB) *Storages {
 // constructor
 // load all collections into a map
 func (stors *Storages) Init() (err error) {
+	stors.m.Lock()
+	defer stors.m.Unlock()
 	var (
 		id       int
 		name     string
@@ -68,6 +72,8 @@ func (stors *Storages) Init() (err error) {
 }
 
 func (stors *Storages) ById(id int) (s Storage, err error) {
+	stors.m.RLock()
+	defer stors.m.RUnlock()
 	s, ok := stors.storages[id]
 	if !ok {
 		err = errors.New(strconv.Itoa(id) + " not found in storages")
@@ -76,6 +82,8 @@ func (stors *Storages) ById(id int) (s Storage, err error) {
 }
 
 func (stors *Storages) ByName(name string) (s Storage, err error) {
+	stors.m.RLock()
+	defer stors.m.RUnlock()
 	for _, s = range stors.storages {
 		if s.name == name {
 			return
@@ -87,7 +95,7 @@ func (stors *Storages) ByName(name string) (s Storage, err error) {
 
 func (s *Storage) GetPath() (string, error) {
 	_url, err := url.Parse(s.filebase)
-	if err != nil  {
+	if err != nil {
 		return "", err
 	}
 	return _url.Path, nil

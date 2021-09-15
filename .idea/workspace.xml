@@ -22,11 +22,12 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="file instead of request">
+    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="upgrade go 1.6 / error messages">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/digma/mediaserver/collections.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/collections.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/digma/mediaserver/storages.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/storages.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -95,7 +96,8 @@
     <MESSAGE value="cache header added" />
     <MESSAGE value="head request added" />
     <MESSAGE value="file instead of request" />
-    <option name="LAST_COMMIT_MESSAGE" value="file instead of request" />
+    <MESSAGE value="upgrade go 1.6 / error messages" />
+    <option name="LAST_COMMIT_MESSAGE" value="upgrade go 1.6 / error messages" />
   </component>
   <component name="VgoProject">
     <integration-enabled>true</integration-enabled>
