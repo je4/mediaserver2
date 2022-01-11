@@ -215,8 +215,8 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	ms.logger.Debug("QUERY: /" + collection + "[" + strconv.Itoa(coll.id) + "]/" + signature + "/" + naction + "/" + nparamstring)
 
 	found := true
-	row := ms.db.QueryRow("select filebase, path, mimetype, jwtkey, storageid FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
-	err = row.Scan(&filebase, &path, &mimetype, &jwtkey, &storageid)
+	row := ms.db.QueryRow("select filebase, path, mimetype, jwtkey, storageid, private FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
+	err = row.Scan(&filebase, &path, &mimetype, &jwtkey, &storageid, &private)
 	if err != nil {
 		found = false
 		ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s] - %v", collection, signature, naction, nparamstring, err))
@@ -247,7 +247,10 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	if !ok {
 		token, ok = req.URL.Query()["auth"]
 	}
-	if found && jwtkey.Valid && private == 1 {
+
+	//if (found && jwtkey.Valid) || private == 1 {
+	ms.logger.Debugf("%s/%s: found: %v // private: %v // jwtkey.Valid: %v", collection, signature, found, private, jwtkey.Valid)
+	if found && private == 1 && jwtkey.Valid {
 		if ok {
 			sub := strings.ToLower(strings.TrimRight(ms.cfg.SubPrefix+collection+"/"+signature+"/"+action+"/"+paramstring, "/"))
 			err := CheckJWT(token[0], jwtkey.String, sub)
