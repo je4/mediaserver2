@@ -175,6 +175,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 		mimetype     string
 		jwtkey       sql.NullString
 		storageid    int
+		private      int
 		paramstring  string
 		naction      string
 		nparamstring string
@@ -227,12 +228,12 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 
 		naction = "convert"
 		nparamstring = "formatptiff"
-		row := ms.db.QueryRow("select filebase, path, jwtkey, storageid FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
+		row := ms.db.QueryRow("select filebase, path, jwtkey, storageid, private FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
 		if err != nil {
 			ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not query %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
 			return err
 		}
-		err = row.Scan(&filebase, &path, &jwtkey, &storageid)
+		err = row.Scan(&filebase, &path, &jwtkey, &storageid, &private)
 		if err != nil {
 			found = false
 			ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s]", collection, signature, naction, nparamstring))
@@ -246,7 +247,7 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	if !ok {
 		token, ok = req.URL.Query()["auth"]
 	}
-	if found && jwtkey.Valid {
+	if found && jwtkey.Valid && private == 1 {
 		if ok {
 			sub := strings.ToLower(strings.TrimRight(ms.cfg.SubPrefix+collection+"/"+signature+"/"+action+"/"+paramstring, "/"))
 			err := CheckJWT(token[0], jwtkey.String, sub)
