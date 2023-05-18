@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"gitlab.fhnw.ch/hgk-dima/mediaserver2/digma/data"
 	"gitlab.fhnw.ch/hgk-dima/mediaserver2/digma/mediaserver"
 	"log"
 	"os"
@@ -116,13 +117,55 @@ func main() {
 			ms.AuthFileSrvHandler(writer, req, folder.Secret, cfg.SubPrefix, strings.TrimRight(folder.Path, "/"), folder.Alias, params)
 		})
 	}
-
+	/*
+	   	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/webrecorder/:collection/:signature", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	   		collection := params.ByName("collection")
+	   		signature := params.ByName("signature")
+	   		html := `
+	   <html>
+	   <head>
+	   </head>
+	   <body>
+	   	<replay-web-page
+	   		source="%s/master"
+	   	</replay-web-page>
+	   	<script src="%s/replay/ui.js"></script>
+	   </body>
+	   </html>
+	   `
+	   		bUrl := fmt.Sprintf("../%s/%s", collection, signature)
+	   		html = fmt.Sprintf(html, bUrl, bUrl)
+	   		writer.Header().Set("Content-Type", "text/html")
+	   		writer.Write([]byte(html))
+	   	})
+	   	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/webrecorder/:collection/:signature/replay/sw.js", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	   		writer.Header().Set("Content-Type", "text/javascript")
+	   		writer.Write(data.Sw_js)
+	   	})
+	   	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/webrecorder/:collection/:signature/replay/ui.js", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	   		writer.Header().Set("Content-Type", "text/javascript")
+	   		writer.Write(data.Ui_js)
+	   	})
+	*/
 	// route with parameters
 	router.GET(strings.TrimRight(cfg.Mediaserver.Alias, "/")+"/:collection/:signature/:action/*params", func(writer http.ResponseWriter, req *http.Request, params httprouter.Params) {
 		collection := params.ByName("collection")
 		signature := params.ByName("signature")
 		action := params.ByName("action")
 		paramString := strings.ToLower(params.ByName("params"))
+		if action == "replay" {
+			//fmt.Println(paramString)
+			if paramString == "/sw.js" {
+				writer.Header().Set("Content-Type", "text/javascript")
+				writer.Write(data.Sw_js)
+				return
+			}
+			if paramString == "/ui.js" {
+				writer.Header().Set("Content-Type", "text/javascript")
+				writer.Write(data.Ui_js)
+				return
+			}
+		}
 		ps := strings.Split(paramString, "/")
 		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -147,6 +190,24 @@ func main() {
 		action := params.ByName("action")
 		paramString := ""
 		ps := strings.Split(paramString, "/")
+		if action == "webrecorder" {
+			html := `
+<html>
+<head>
+</head>
+<body>
+	<replay-web-page 
+		source="master" 
+	</replay-web-page>
+	<script src="replay/ui.js"></script>
+</body>
+</html>
+`
+			//			html = fmt.Sprintf(html, )
+			writer.Header().Set("Content-Type", "text/html")
+			writer.Write([]byte(html))
+			return
+		}
 		writer.Header().Set("Server", VERSION)
 		writer.Header().Set("Access-Control-Allow-Origin", "*")
 		ms.Handler(writer, req, collection, signature, action, ps)

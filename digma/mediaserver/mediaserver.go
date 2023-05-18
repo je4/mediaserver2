@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	logging "github.com/op/go-logging"
-	"github.com/tomasen/fcgi_client"
+	fcgiclient "github.com/tomasen/fcgi_client"
 )
 
 var (
@@ -215,13 +215,24 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	ms.logger.Debug("QUERY: /" + collection + "[" + strconv.Itoa(coll.id) + "]/" + signature + "/" + naction + "/" + nparamstring)
 
 	found := true
+	exists := true
 	row := ms.db.QueryRow("select filebase, path, mimetype, jwtkey, storageid, private FROM fullcache WHERE collection_id=? AND signature=? and action=? AND param=?", coll.id, signature, naction, nparamstring)
 	err = row.Scan(&filebase, &path, &mimetype, &jwtkey, &storageid, &private)
 	if err != nil {
 		found = false
-		ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s/%s/%s] - %v", collection, signature, naction, nparamstring, err))
-		//		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not find %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
-		//		return nil
+		sqlstr := "select jwtkey, `m`.`public` = 0 or `c`.`public` = 0 AS `private` " +
+			" FROM master m, collection c, storage s " +
+			" WHERE m.collectionid=? AND m.signature=? AND m.collectionid=c.collectionid AND s.storageid=c.storageid"
+		//ms.logger.Debugf("%s - [%v, %s]", sqlstr, coll.id, signature)
+		row := ms.db.QueryRow(sqlstr, coll.id, signature)
+		err = row.Scan(&jwtkey, &private)
+		if err != nil {
+			exists = false
+			ms.logger.Debug(fmt.Sprintf("could not find in databbase [%s/%s] - %v", collection, signature, err))
+			//		ms.DoPanic(writer, req, http.StatusNotFound, fmt.Sprintf("could not find %s[%d]/%s/%s/%s", collection, coll.id, signature, naction, nparamstring))
+			//		return nil
+		}
+		ms.logger.Debugf("%s/%s exists // private: %v", collection, signature, private)
 	}
 	if found && isiiif {
 		ms.logger.Debug("Mimetype: " + mimetype)
@@ -249,8 +260,8 @@ func (ms *Mediaserver) Handler(writer http.ResponseWriter, req *http.Request, co
 	}
 
 	//if (found && jwtkey.Valid) || private == 1 {
-	ms.logger.Debugf("%s/%s: found: %v // private: %v // jwtkey.Valid: %v", collection, signature, found, private, jwtkey.Valid)
-	if found && private == 1 && jwtkey.Valid {
+	ms.logger.Debugf("%s/%s: found: %v // exists: %v // private: %v // jwtkey.Valid: %v", collection, signature, found, exists, private, jwtkey.Valid)
+	if exists && private == 1 && jwtkey.Valid {
 		if ok {
 			sub := strings.ToLower(strings.TrimRight(ms.cfg.SubPrefix+collection+"/"+signature+"/"+action+"/"+paramstring, "/"))
 			err := CheckJWT(token[0], jwtkey.String, sub)

@@ -22,37 +22,62 @@
     <select />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="upgrade go 1.6 / error messages">
+    <list default="true" id="9e5e2172-068c-4eab-8591-3ac2114a194d" name="Default Changelist" comment="private check corrections">
+      <change afterPath="$PROJECT_DIR$/digma/data/embed.go" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/digma/data/sw.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/digma/data/ui.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/digma/mediaserver/collections.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/collections.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/digma/mediaserver/storages.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/storages.go" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" beforeDir="false" afterPath="$PROJECT_DIR$/digma/mediaserver/mediaserver.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mediasrv2.toml-template" beforeDir="false" afterPath="$PROJECT_DIR$/mediasrv2.toml-template" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mediasrv2/main.go" beforeDir="false" afterPath="$PROJECT_DIR$/mediasrv2/main.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Go File" />
+      </list>
+    </option>
+  </component>
   <component name="GOROOT" url="file://$PROJECT_DIR$/../../../../Program Files/Go" />
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GoLibraries">
+    <option name="indexEntireGoPath" value="true" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectId" id="1gGWNb4udR0F96sYdPnWkmqExay" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">
-    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
-    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="WebServerToolWindowFactoryState" value="false" />
-    <property name="go.formatter.settings.were.checked" value="true" />
-    <property name="go.import.settings.migrated" value="true" />
-    <property name="go.modules.go.list.on.any.changes.was.set" value="true" />
-    <property name="go.sdk.automatically.set" value="true" />
-    <property name="go.tried.to.enable.integration.vgo.integrator" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/mediasrv2" />
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "DefaultGoTemplateProperty": "Go File",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.go.formatter.settings.were.checked": "true",
+    "RunOnceActivity.go.migrated.go.modules.settings": "true",
+    "RunOnceActivity.go.modules.go.list.on.any.changes.was.set": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "go.import.settings.migrated": "true",
+    "last_opened_file_path": "C:/daten/go/dev/mediaserver2/digma/data",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)"
+  }
+}]]></component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\daten\go\dev\mediaserver2\digma\data" />
+    </key>
   </component>
   <component name="RunManager">
     <configuration default="true" type="GoApplicationRunConfiguration" factoryName="Go Application">
@@ -69,6 +94,7 @@
     <configuration name="go build gitlab.fhnw.ch/hgk-dima/mediaserver2/mediasrv2" type="GoApplicationRunConfiguration" factoryName="Go Application" nameIsGenerated="true">
       <module name="mediaserver2" />
       <working_directory value="$PROJECT_DIR$" />
+      <parameters value="-cfg ./mediasrv2.toml-template" />
       <kind value="DIRECTORY" />
       <package value="gitlab.fhnw.ch/hgk-dima/mediaserver2" />
       <directory value="$PROJECT_DIR$/mediasrv2" />
@@ -85,29 +111,43 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>
     </option>
-    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="cache header added" />
     <MESSAGE value="head request added" />
     <MESSAGE value="file instead of request" />
     <MESSAGE value="upgrade go 1.6 / error messages" />
-    <option name="LAST_COMMIT_MESSAGE" value="upgrade go 1.6 / error messages" />
+    <MESSAGE value="mutex for collections and storages" />
+    <MESSAGE value="private check" />
+    <MESSAGE value="private check corrections" />
+    <option name="LAST_COMMIT_MESSAGE" value="private check corrections" />
   </component>
   <component name="VgoProject">
-    <integration-enabled>true</integration-enabled>
+    <settings-migrated>true</settings-migrated>
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="DlvLineBreakpoint">
           <url>file://$PROJECT_DIR$/mediasrv2/main.go</url>
-          <line>50</line>
+          <line>51</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>
