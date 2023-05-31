@@ -1,4 +1,4 @@
-module gitlab.fhnw.ch/hgk-dima/mediaserver2
+module github.com/je4/mediaserver2
 
 go 1.17
 

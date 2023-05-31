@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"gitlab.fhnw.ch/hgk-dima/mediaserver2/digma/data"
-	"gitlab.fhnw.ch/hgk-dima/mediaserver2/digma/mediaserver"
+	"github.com/je4/mediaserver2/digma/data"
+	"github.com/je4/mediaserver2/digma/mediaserver"
 	"log"
 	"os"
 	"os/signal"
@@ -190,6 +190,7 @@ func main() {
 		action := params.ByName("action")
 		paramString := ""
 		ps := strings.Split(paramString, "/")
+		url := req.URL.Query().Get("url")
 		if action == "webrecorder" {
 			html := `
 <html>
@@ -197,12 +198,16 @@ func main() {
 </head>
 <body>
 	<replay-web-page 
-		source="master" 
+		source="master"
+		%%URL%%
 	</replay-web-page>
 	<script src="replay/ui.js"></script>
 </body>
 </html>
 `
+			if url != "" {
+				html = strings.ReplaceAll(html, "%%URL%%", "url=\""+url+"\"")
+			}
 			//			html = fmt.Sprintf(html, )
 			writer.Header().Set("Content-Type", "text/html")
 			writer.Write([]byte(html))
