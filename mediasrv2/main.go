@@ -205,9 +205,12 @@ func main() {
 </body>
 </html>
 `
+			//var str string
 			if url != "" {
+				//str = "%%URL%%", "url=\"" + url + "\""
 				html = strings.ReplaceAll(html, "%%URL%%", "url=\""+url+"\"")
 			}
+			//html = strings.ReplaceAll(html, str)
 			//			html = fmt.Sprintf(html, )
 			writer.Header().Set("Content-Type", "text/html")
 			writer.Write([]byte(html))
